@@ -22,16 +22,10 @@ import utility
 from utility.log import log
 
 
-# Output formats we support
-OUTPUT_FORMATS = ['json', 'yaml', 'pprint']
-
-# Commands we support
-COMMANDS = {
-  'print':'Print out job spec',
-  'list':'List all jobs in runman spec',
-  'run':'Run a job from the runman spec',
-  'info':'Information about this environment',
-  'client':'Run forever processing server requests',
+# Remote Commands we support
+COMMAND = {
+  'file':'Ensure a file has the proper contents, permissions',
+  'directory':'Ensure a directory exists, and has the proper permissions',
 }
 
 
@@ -113,24 +107,6 @@ def ProcessCommand(run_spec, command, command_options, command_args):
   return output_data
 
 
-def FormatAndOuput(result, command_options):
-  """Format the output and return it"""
-  # PPrint
-  if command_options['format'] == 'pprint':
-    pprint.pprint(result)
-  
-  # YAML
-  elif command_options['format'] == 'yaml':
-    print yaml.dump(result)
-  
-  # JSON
-  elif command_options['format'] == 'json':
-    print json.dumps(result)
-  
-  else:
-    raise Exception('Unknown output format "%s", result as text: %s' % (command_options['format'], result))
-
-
 def Usage(error=None):
   """Print usage information, any errors, and exit.
 
@@ -143,20 +119,17 @@ def Usage(error=None):
     exit_code = 0
   
   print
-  print 'usage: %s [options] <runman_spec.yaml> <command> [job_key]' % os.path.basename(sys.argv[0])
+  print 'usage: %s [options] <remote_spec.yaml>' % os.path.basename(sys.argv[0])
   print
-  print 'example usage: "python %s ./runman_specs/*.yaml run somejob"' % os.path.basename(sys.argv[0])
+  print 'example usage: "python %s ./data/remote_spec.yaml"' % os.path.basename(sys.argv[0])
   print
   print
   print 'Options:'
   print
   print '  -h, -?, --help              This usage information'
   print '  -v, --verbose               Verbose output'
-  print '  -s, --strict                Strict mode: fail if input fields not specified for collection are missing'
-  print '  -f, --format <format>       Format output, types: %s' % ', '.join(OUTPUT_FORMATS)
-  print '  -n, --noninteractive        Do not use STDIN to prompt for missing input fields'
-  print '  -i, --input <path>          Path to input file (Format specified by suffic: (.yaml, .json)'
-  print '  --override-host <hostname>  Hostname to run jobs as.  Allows '
+  print '  -n, --nocommit              Do not commit any changes, just test them'
+  print '  --override-host <hostname>  Hostname to run jobs as.  Allows testing different hosts.'
   print
   print 'Commands:'
   print
@@ -173,22 +146,18 @@ def Main(args=None):
   if not args:
     args = []
 
-  long_options = ['help', 'format=', 'verbose', 'strict', 'noninteractive', 'input=']
+  long_options = ['help', 'verbose', 'override-host=', 'nocommit']
   
   try:
-    (options, args) = getopt.getopt(args, '?hvnsi:f:', long_options)
+    (options, args) = getopt.getopt(args, '?hvn', long_options)
   except getopt.GetoptError, e:
     Usage(e)
   
   # Dictionary of command options, with defaults
   command_options = {}
-  command_options['remote'] = False   # Remote invocation.  When quitting or Error(), report back remotely with details.
   command_options['platform'] = utility.platform.GetPlatform()
   command_options['verbose'] = False
-  command_options['format'] = 'pprint'
-  command_options['noninteractive'] = False
-  command_options['input_path'] = None
-  command_options['strict'] = False
+  command_options['no_commit'] = False
   command_options['override_host'] = None
   
   
@@ -203,23 +172,8 @@ def Main(args=None):
       command_options['verbose'] = True
     
     # Noninteractive.  Doesnt use STDIN to gather any missing data.
-    elif option in ('-n', '--noninteractive'):
-      command_options['noninteractive'] = True
-    
-    # Strict mode. fail if input fields not specified for collection are missing.
-    elif option in ('-s', '--strict'):
-      command_options['strict'] = True
-    
-    # Noninteractive.  Doesnt use STDIN to gather any missing data.
-    elif option in ('-i', '--input'):
-      command_options['input_path'] = value
-    
-    # Format output
-    elif option in ('-f', '--format'):
-      if value not in (OUTPUT_FORMATS):
-        Usage('Unsupported output format "%s", supported formats: %s' % (value, ', '.join(OUTPUT_FORMATS)))
-      
-      command_options['format'] = value
+    elif option in ('-n', '--nocommit'):
+      command_options['no_commit'] = True
     
     # Overrride: Host name for running jobs
     elif option == '--override-host':
@@ -234,42 +188,28 @@ def Main(args=None):
   utility.log.RUN_OPTIONS = command_options
   
   
-  # Ensure we at least have a command, it's required
+  # Ensure we at least have a spec file, it's required
   if len(args) < 1:
-    Usage('No run spec specified')
+    Usage('No remote spec specified')
   
   # Get the command
-  run_spec_path = args[0]
+  remote_spec_path = args[0]
   
-  if not os.path.isfile(run_spec_path):
-    Usage('Run spec file does not exist: %s' % run_spec_path)
+  if not os.path.isfile(remote_spec_path):
+    Usage('Remote spec file does not exist: %s' % remote_spec_path)
   
   try:
-    run_spec = yaml.load(open(run_spec_path))
+    remote_spec = yaml.load(open(remote_spec_path))
   
   except Exception, e:
-    Usage('Failed to load run_spec: %s: %s' % (run_spec_path, e))
+    Usage('Failed to load remote_spec: %s: %s' % (remote_spec_path, e))
     
   
-  # Ensure we at least have a command, it's required
-  if len(args) < 2:
-    Usage('No command specified')
-  
-  # Get the command
-  command = args[1]
-  
-  # If this is an unknown command, say so
-  if command not in COMMANDS:
-    Usage('Command "%s" unknown.  Commands: %s' % (command, ', '.join(COMMANDS)))
-  
-  # If there are any command args, get them
-  command_args = args[2:]
-  
-  # Process the command
+  # Request the Remote Instructions for this machine
   if 1:
   #try:
     # Process the command and retrieve a result
-    result = ProcessCommand(run_spec, command, command_options, command_args)
+    result = RequestRemoteInstructions(remote_spec, command, command_options)
     
     # Format and output the result (pprint/json/yaml to stdout/file)
     FormatAndOuput(result, command_options)
