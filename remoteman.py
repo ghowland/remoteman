@@ -22,14 +22,17 @@ import utility
 from utility.log import log
 
 
-# Remote Commands we support
-COMMAND = {
-  'file':'Ensure a file has the proper contents, permissions',
-  'directory':'Ensure a directory exists, and has the proper permissions',
+# Output formats we support
+OUTPUT_FORMATS = ['json', 'yaml', 'pprint']
+
+# Built-In Remote Commands we support
+COMMANDS = {
+  'file':'Ensure a file has the proper contents, permissions (default)',
+  'directory':'Ensure a directory exists, and has the proper permissions (default)',
 }
 
 
-def ProcessCommand(run_spec, command, command_options, command_args):
+def RequestRemoteInstructions(remote_spec, command_options):
   """Process a command against this run_spec_path"""
   output_data = {}
   
@@ -107,6 +110,24 @@ def ProcessCommand(run_spec, command, command_options, command_args):
   return output_data
 
 
+def FormatAndOuput(result, command_options):
+  """Format the output and return it"""
+  # PPrint
+  if command_options['format'] == 'pprint':
+    pprint.pprint(result)
+  
+  # YAML
+  elif command_options['format'] == 'yaml':
+    print yaml.dump(result)
+  
+  # JSON
+  elif command_options['format'] == 'json':
+    print json.dumps(result)
+  
+  else:
+    raise Exception('Unknown output format "%s", result as text: %s' % (command_options['format'], result))
+
+
 def Usage(error=None):
   """Print usage information, any errors, and exit.
 
@@ -130,8 +151,10 @@ def Usage(error=None):
   print '  -v, --verbose               Verbose output'
   print '  -n, --nocommit              Do not commit any changes, just test them'
   print '  --override-host <hostname>  Hostname to run jobs as.  Allows testing different hosts.'
+  print '  --handler-directory <path>  Hostname to run jobs as.  Allows testing different hosts.'
+  print '  -f, --format <format>       Format output, types: %s' % ', '.join(OUTPUT_FORMATS)
   print
-  print 'Commands:'
+  print 'Remote Instructions Configured:'
   print
   command_keys = list(COMMANDS.keys())
   command_keys.sort()
@@ -146,7 +169,7 @@ def Main(args=None):
   if not args:
     args = []
 
-  long_options = ['help', 'verbose', 'override-host=', 'nocommit']
+  long_options = ['help', 'verbose', 'override-host=', 'nocommit', 'handler-directory=']
   
   try:
     (options, args) = getopt.getopt(args, '?hvn', long_options)
@@ -159,6 +182,8 @@ def Main(args=None):
   command_options['verbose'] = False
   command_options['no_commit'] = False
   command_options['override_host'] = None
+  command_options['handler_directory'] = None
+  command_options['format'] = 'pprint'
   
   
   # Process out CLI options
@@ -178,6 +203,19 @@ def Main(args=None):
     # Overrride: Host name for running jobs
     elif option == '--override-host':
       command_options['override_host'] = value
+    
+    # Overrride: Specify a directory for finding handlers.
+    #NOTE(g): Will check this directory first, and then check the "base" directory
+    #   (where the remoteman.py file resides) for the path for default handlers.
+    elif option == '--handler-directory':
+      command_options['handler_directory'] = value
+    
+    # Format output
+    elif option in ('-f', '--format'):
+      if value not in (OUTPUT_FORMATS):
+        Usage('Unsupported output format "%s", supported formats: %s' % (value, ', '.join(OUTPUT_FORMATS)))
+      
+      command_options['format'] = value
     
     # Invalid option
     else:
@@ -209,7 +247,7 @@ def Main(args=None):
   if 1:
   #try:
     # Process the command and retrieve a result
-    result = RequestRemoteInstructions(remote_spec, command, command_options)
+    result = RequestRemoteInstructions(remote_spec, command_options)
     
     # Format and output the result (pprint/json/yaml to stdout/file)
     FormatAndOuput(result, command_options)

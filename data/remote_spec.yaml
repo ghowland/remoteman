@@ -1,0 +1,14 @@
+# Information about your webserver that will return the information needed to be processed remotely on this node/machine
+server:
+  # URL to request your RemoteMan instructions.  Expects hostname as GET variable.
+  #   This will return a JSON list of dicts, with instructions as the "command" key ('file', 'directory', etc)
+  url: "https://opsdb/rpc/remoteman_instructions?hostname=%(hostname)s"
+
+# Command handlers, map commands given by the Server to be executed by the Python command handlers
+#   - Use the default handlers as a template to create new template.  The Process() function must be implemented.
+#   - Will search the remote_man.py's directory first (appending handlers/ path, as specified) before looking
+#       at the current working directory for handlers, unless a --handler-directory is specified.
+commands:
+  file: handlers/remote_file.py
+  directory: handlers/remote_directory.py
+
