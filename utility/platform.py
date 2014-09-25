@@ -38,8 +38,13 @@ def GetPlatform():
   return platform
 
 
-def GetHostname():
+def GetHostname(command_options):
   """Returns a string, the fully qualified domain name (FQDN) of this local host."""
+  
+  # If we are overriding the hostname, use this one instead
+  if 'override_host' in command_options:
+    return command_options['override_host']
+  
   (status, output) = commands.getstatusoutput('/bin/hostname')
   return output.split('.')[0]
 

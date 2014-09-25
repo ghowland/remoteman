@@ -2,7 +2,8 @@
 server:
   # URL to request your RemoteMan instructions.  Expects hostname as GET variable.
   #   This will return a JSON list of dicts, with instructions as the "command" key ('file', 'directory', etc)
-  url: "https://opsdb/rpc/remoteman_instructions?hostname=%(hostname)s"
+  #url: "https://opsdb:8686/rpc/remoteman_instructions?hostname=%(hostname)s"
+  url: "http://opsdb:8686/rpc/remoteman_instructions?hostname=%(hostname)s"
 
 # Command handlers, map commands given by the Server to be executed by the Python command handlers
 #   - Use the default handlers as a template to create new template.  The Process() function must be implemented.

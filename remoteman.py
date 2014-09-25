@@ -32,84 +32,6 @@ COMMANDS = {
 }
 
 
-def RequestRemoteInstructions(remote_spec, command_options):
-  """Process a command against this run_spec_path"""
-  output_data = {}
-  
-  # Info: Information about this environment
-  if command == 'info':
-    output_data['options'] = command_options
-
-  # List: List the jobs to run in this environment
-  elif command == 'list':
-    output_data['errors'] = []
-    
-    # Jobs
-    #output_data['jobs'] = {}
-    for (job, job_path) in run_spec['jobs'].items():
-      if os.path.isfile:
-        try:
-          job_data = yaml.load(open(job_path))
-          #output_data['jobs'][job] = {}
-          #output_data['jobs'][job]['data'] = job_data['data']
-          
-          print 'Job: %s: %s: %s' % (job, job_data['data']['component'], job_data['data']['name'])
-          
-        except Exception, e:
-          output_data['errors'].append('Job spec could not be loaded: %s: %s: %s' % (job, job_path, e))
-          
-      else:
-        output_data['errors'].append('Job spec file not found: %s' % job_path)
-
-  # Print: Print out job spec
-  elif command == 'print':
-    output_data['errors'] = []
-    
-    # Runspec
-    output_data['run_spec'] = run_spec
-    
-    # Websource: If we have the websource (HTTP based datasource), load its data
-    if 'websource' in run_spec:
-      try:
-        output_data['websource'] = yaml.load(open(run_spec['websource']))
-        
-      except Exception, e:
-        output_data['errors'].append('Could not load run_spec\'s websource: %s: %s' % (run_spec['websource'], e))
-    
-    # Websource: missing
-    else:
-      output_data['errors'].append('No websource block specified in the run_spec')
-    
-    # Jobs
-    output_data['jobs'] = {}
-    for (job, job_path) in run_spec['jobs'].items():
-      log('Job: %s' % job)
-      if os.path.isfile:
-        try:
-          output_data['jobs'][job] = yaml.load(open(job_path))
-          
-        except Exception, e:
-          output_data['errors'].append('Job spec could not be loaded: %s: %s: %s' % (job, job_path, e))
-          
-      else:
-        output_data['errors'].append('Job spec file not found: %s' % job_path)
-  
-  # Run a job
-  elif command == 'run':
-    utility.run.Run(run_spec, command_options, command_args)
-  
-  # Client - Run forever processing server requests
-  elif command == 'client':
-    utility.client.ProcessRequestsForever(run_spec, command_options, command_args)
-  
-  # Unknown command
-  else:
-    output_data['errors'] = ['Unknown command: %s' % command]
-    
-  
-  return output_data
-
-
 def FormatAndOuput(result, command_options):
   """Format the output and return it"""
   # PPrint
@@ -247,7 +169,7 @@ def Main(args=None):
   if 1:
   #try:
     # Process the command and retrieve a result
-    result = RequestRemoteInstructions(remote_spec, command_options)
+    result = utility.client.RequestRemoteInstructions(remote_spec, command_options)
     
     # Format and output the result (pprint/json/yaml to stdout/file)
     FormatAndOuput(result, command_options)
